@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI API Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .auth-container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .dashboard {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, textarea, button {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .tab-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: #f8f9fa;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px 8px 0 0;
+            margin-right: 5px;
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .api-key-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px dashed #dee2e6;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 AI API Platform</h1>
+            <p>Your Gateway to AI-Powered APIs</p>
+        </div>
+
+        <!-- Authentication Section -->
+        <div id="authSection" class="auth-container">
+            <div class="tab-container">
+                <button class="tab active" onclick="switchTab('login')">Login</button>
+                <button class="tab" onclick="switchTab('register')">Register</button>
+            </div>
+
+            <div id="loginTab" class="tab-content active">
+                <h2>Welcome Back!</h2>
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter your password">
+                </div>
+                <button onclick="login()">Login</button>
+            </div>
+
+            <div id="registerTab" class="tab-content">
+                <h2>Create Account</h2>
+                <div class="form-group">
+                    <label for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" placeholder="Enter your email">
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" placeholder="Enter your password">
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password</label>
+                    <input type="password" id="confirmPassword" placeholder="Confirm your password">
+                </div>
+                <button onclick="register()">Create Account</button>
+            </div>
+
+            <div id="authMessage"></div>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="dashboardSection" class="dashboard">
+            <div class="card">
+                <h2>📊 Dashboard</h2>
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-value" id="creditsRemaining">100</div>
+                        <div>Credits Remaining</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="totalRequests">0</div>
+                        <div>Total Requests</div>
+                    </div>
+                </div>
+
+                <h3>Your API Key</h3>
+                <div class="api-key-display" id="userApiKey">
+                    Generating API Key...
+                </div>
+                <button onclick="copyApiKey()" class="copy-btn">Copy API Key</button>
+
+                <button onclick="logout()" style="background: #dc3545; margin-top: 20px;">Logout</button>
+            </div>
+
+            <div class="card">
+                <h2>🧪 API Tester</h2>
+                <div class="form-group">
+                    <label for="testPrompt">Test Prompt</label>
+                    <textarea id="testPrompt" rows="4" placeholder="Enter your prompt here...">Hello, how are you?</textarea>
+                </div>
+                <button onclick="testAPI()">Test API</button>
+                
+                <div id="testResult" style="margin-top: 20px;"></div>
+            </div>
+
+            <div class="card" style="grid-column: span 2;">
+                <h2>📖 API Documentation</h2>
+                
+                <h3>Base URL</h3>
+                <div class="code-block">https://your-platform-domain.com/api/chat</div>
+
+                <h3>JavaScript Example</h3>
+                <div class="code-block">
+const response = await fetch('https://your-platform-domain.com/api/chat', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_API_KEY'
+  },
+  body: JSON.stringify({
+    message: 'Hello, how are you?'
+  })
+});
+
+const data = await response.json();
+console.log(data.response);</div>
+
+                <h3>Python Example</h3>
+                <div class="code-block">
+import requests
+
+url = "https://your-platform-domain.com/api/chat"
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer YOUR_API_KEY"
+}
+data = {
+    "message": "Hello, how are you?"
+}
+
+response = requests.post(url, json=data, headers=headers)
+result = response.json()
+print(result['response'])</div>
+
+                <h3>cURL Example</h3>
+                <div class="code-block">
+curl -X POST https://your-platform-domain.com/api/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -d '{
+    "message": "Hello, how are you?"
+  }'</div>
+
+                <h3>Response Format</h3>
+                <div class="code-block">
+{
+  "success": true,
+  "response": "AI generated response here",
+  "credits_remaining": 95,
+  "request_id": "unique_request_id"
+}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBY5gsQusKZ95Os3KoWvjauEMxGI8fBw3c",
+            authDomain: "apilage-ai.firebaseapp.com",
+            databaseURL: "https://apilage-ai-default-rtdb.firebaseio.com",
+            projectId: "apilage-ai",
+            storageBucket: "apilage-ai.firebasestorage.app",
+            messagingSenderId: "902160013451",
+            appId: "1:902160013451:web:498911915681b72ce25c8e",
+            measurementId: "G-N7SRT0LHJV"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Global variables
+        let currentUser = null;
+        let userApiKey = null;
+
+        // Make functions global
+        window.switchTab = switchTab;
+        window.login = login;
+        window.register = register;
+        window.logout = logout;
+        window.testAPI = testAPI;
+        window.copyApiKey = copyApiKey;
+
+        // Tab switching
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(t => t.classList.remove('active'));
+            contents.forEach(c => c.classList.remove('active'));
+            
+            document.querySelector(`[onclick="switchTab('${tab}')"]`).classList.add('active');
+            document.getElementById(`${tab}Tab`).classList.add('active');
+        }
+
+        // Authentication functions
+        async function register() {
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const messageDiv = document.getElementById('authMessage');
+
+            if (password !== confirmPassword) {
+                showMessage('Passwords do not match!', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showMessage('Password must be at least 6 characters!', 'error');
+                return;
+            }
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+                
+                // Create user document with initial credits
+                const apiKey = generateApiKey();
+                await setDoc(doc(db, 'users', user.uid), {
+                    email: user.email,
+                    credits: 100,
+                    totalRequests: 0,
+                    apiKey: apiKey,
+                    createdAt: new Date()
+                });
+
+                showMessage('Account created successfully!', 'success');
+                
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                showMessage('Login successful!', 'success');
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        async function logout() {
+            try {
+                await signOut(auth);
+                showMessage('Logged out successfully!', 'success');
+            } catch (error) {
+                showMessage(error.message, 'error');
+            }
+        }
+
+        // Auth state observer
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                await loadUserData();
+                showDashboard();
+            } else {
+                currentUser = null;
+                userApiKey = null;
+                showAuth();
+            }
+        });
+
+        async function loadUserData() {
+            if (!currentUser) return;
+
+            try {
+                const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    userApiKey = userData.apiKey;
+                    document.getElementById('creditsRemaining').textContent = userData.credits || 0;
+                    document.getElementById('totalRequests').textContent = userData.totalRequests || 0;
+                    document.getElementById('userApiKey').textContent = userApiKey || 'No API key found';
+                }
+            } catch (error) {
+                showMessage('Error loading user data: ' + error.message, 'error');
+            }
+        }
+
+        // API testing function
+        async function testAPI() {
+            if (!userApiKey) {
+                showMessage('No API key found!', 'error');
+                return;
+            }
+
+            const prompt = document.getElementById('testPrompt').value;
+            if (!prompt.trim()) {
+                showMessage('Please enter a prompt!', 'error');
+                return;
+            }
+
+            const testButton = document.querySelector('[onclick="testAPI()"]');
+            testButton.disabled = true;
+            testButton.textContent = 'Testing...';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + userApiKey
+                    },
+                    body: JSON.stringify({
+                        message: prompt
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('testResult').innerHTML = `
+                        <div class="success">
+                            <strong>Response:</strong><br>
+                            ${result.response}
+                            <br><br>
+                            <strong>Credits Remaining:</strong> ${result.credits_remaining}
+                        </div>
+                    `;
+                    document.getElementById('creditsRemaining').textContent = result.credits_remaining;
+                } else {
+                    document.getElementById('testResult').innerHTML = `
+                        <div class="error">
+                            <strong>Error:</strong> ${result.error}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('testResult').innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            } finally {
+                testButton.disabled = false;
+                testButton.textContent = 'Test API';
+            }
+        }
+
+        // Utility functions
+        function generateApiKey() {
+            return 'apk_' + Math.random().toString(36).substr(2, 32);
+        }
+
+        function copyApiKey() {
+            navigator.clipboard.writeText(userApiKey).then(() => {
+                showMessage('API Key copied to clipboard!', 'success');
+            });
+        }
+
+        function showMessage(message, type) {
+            const messageDiv = document.getElementById('authMessage');
+            messageDiv.innerHTML = `<div class="${type}">${message}</div>`;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+
+        function showDashboard() {
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('dashboardSection').style.display = 'grid';
+        }
+
+        function showAuth() {
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('dashboardSection').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
