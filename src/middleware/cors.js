@@ -13,8 +13,8 @@ const corsOptions = {
     origin: function (origin, callback) {
         const allowedOrigins = config.cors.allowedOrigins;
         
-        // Allow requests with no origin in development (mobile apps, curl, Postman)
-        if (!origin && isDevelopment()) {
+        // Allow requests with no origin (mobile apps, curl, Postman, API testing tools)
+        if (!origin) {
             return callback(null, true);
         }
         
