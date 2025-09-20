@@ -7,6 +7,7 @@ const express = require('express');
 const { asyncHandler } = require('../middleware/errorHandler');
 const { testConnection } = require('../config/database');
 const { checkServiceHealth } = require('../services/geminiService');
+const { getMemoryStatus } = require('../utils/memoryMonitor');
 
 const router = express.Router();
 
@@ -121,48 +122,94 @@ router.get('/detailed', asyncHandler(async (req, res) => {
 }));
 
 /**
- * GET /api/health/ready
+ * GET /api/health/ready  
  * Kubernetes/Docker readiness probe
  */
 router.get('/ready', asyncHandler(async (req, res) => {
     try {
-        // Quick checks for readiness
-        const dbReady = await testConnection();
-        
-        if (dbReady) {
-            res.json({
-                success: true,
-                status: 'ready',
-                timestamp: new Date().toISOString()
-            });
-        } else {
-            res.status(503).json({
+        // Quick readiness check - ensure app can handle requests
+        const db = getDatabase();
+        if (!db) {
+            return res.status(503).json({
                 success: false,
                 status: 'not_ready',
-                reason: 'Database connection failed',
-                timestamp: new Date().toISOString()
+                message: 'Database not initialized'
             });
         }
+
+        res.json({
+            success: true,
+            status: 'ready',
+            timestamp: new Date().toISOString()
+        });
     } catch (error) {
         res.status(503).json({
             success: false,
             status: 'not_ready',
-            reason: error.message,
-            timestamp: new Date().toISOString()
+            error: error.message
         });
     }
 }));
 
 /**
  * GET /api/health/live
- * Kubernetes/Docker liveness probe
+ * Kubernetes/Docker liveness probe  
  */
 router.get('/live', (req, res) => {
+    // Simple liveness check - just return OK if process is running
     res.json({
         success: true,
         status: 'alive',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
     });
 });
+
+/**
+ * GET /api/health/choreo
+ * Choreo-specific health check
+ */
+router.get('/choreo', asyncHandler(async (req, res) => {
+    const uptime = process.uptime();
+    const memoryStatus = getMemoryStatus();
+    
+    // Choreo health check with detailed info
+    const healthData = {
+        success: true,
+        status: 'healthy',
+        service: 'apilage-ai-backend',
+        version: '2.0.0',
+        timestamp: new Date().toISOString(),
+        uptime_seconds: Math.floor(uptime),
+        memory: {
+            used_mb: memoryStatus.usage.heapUsed,
+            total_mb: memoryStatus.usage.heapTotal,
+            percentage: memoryStatus.usage.percentage,
+            status: memoryStatus.status
+        },
+        environment: process.env.NODE_ENV || 'production',
+        node_version: process.version
+    };
+
+    // Set overall status based on memory status
+    if (memoryStatus.status === 'critical') {
+        healthData.status = 'unhealthy';
+        healthData.success = false;
+        healthData.message = memoryStatus.message;
+    } else if (memoryStatus.status === 'warning') {
+        healthData.status = 'degraded';
+        healthData.warning = memoryStatus.message;
+    }
+
+    // HTTP status code based on health status
+    let statusCode = 200;
+    if (healthData.status === 'unhealthy') {
+        statusCode = 503;
+    } else if (healthData.status === 'degraded') {
+        statusCode = 207;
+    }
+
+    res.status(statusCode).json(healthData);
+}));
 
 module.exports = router;

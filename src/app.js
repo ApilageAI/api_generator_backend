@@ -14,6 +14,7 @@ const { initializeDatabase } = require('./config/database');
 const { getCorsMiddleware, corsErrorHandler, handlePreflight } = require('./middleware/cors');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { requestLogger, logStartup, logShutdown } = require('./utils/logger');
+const { setupChoreoMemoryMonitoring } = require('./utils/memoryMonitor');
 
 // Route imports
 const chatRoutes = require('./routes/chat');
@@ -219,17 +220,48 @@ const configureErrorHandling = () => {
  * Setup graceful shutdown
  */
 const setupGracefulShutdown = () => {
+    let isShuttingDown = false;
+    
     const gracefulShutdown = (signal) => {
+        if (isShuttingDown) {
+            console.log(`⚠️ Already shutting down, ignoring ${signal}`);
+            return;
+        }
+        
+        isShuttingDown = true;
         logShutdown(signal);
-        console.log('🔄 Closing HTTP server...');
+        console.log(`🔄 Gracefully shutting down on ${signal}...`);
+        
+        // Set a timeout for forceful shutdown
+        const forceTimeout = setTimeout(() => {
+            console.error('💥 Force shutdown timeout reached');
+            process.exit(1);
+        }, 10000); // 10 seconds timeout
         
         // Close server gracefully
         if (global.httpServer) {
-            global.httpServer.close(() => {
-                console.log('✅ HTTP server closed');
-                process.exit(0);
+            console.log('🔄 Closing HTTP server...');
+            global.httpServer.close((error) => {
+                clearTimeout(forceTimeout);
+                
+                if (error) {
+                    console.error('❌ Error closing HTTP server:', error);
+                    process.exit(1);
+                } else {
+                    console.log('✅ HTTP server closed gracefully');
+                    
+                    // Close database connections if needed
+                    // Add any cleanup here
+                    
+                    console.log('✅ Graceful shutdown completed');
+                    process.exit(0);
+                }
             });
+            
+            // Stop accepting new connections immediately
+            global.httpServer.closeAllConnections?.();
         } else {
+            clearTimeout(forceTimeout);
             process.exit(0);
         }
     };
@@ -237,18 +269,46 @@ const setupGracefulShutdown = () => {
     // Handle shutdown signals
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    
+    // Handle container stop signals  
+    process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2'));
 
-    // Handle uncaught exceptions
+    // Enhanced error handling for container environments
     process.on('uncaughtException', (error) => {
         console.error('💥 Uncaught Exception:', error);
-        process.exit(1);
+        console.error('Stack trace:', error.stack);
+        
+        // Try graceful shutdown first
+        if (!isShuttingDown) {
+            console.log('🔄 Attempting graceful shutdown due to uncaught exception...');
+            gracefulShutdown('EXCEPTION');
+        } else {
+            process.exit(1);
+        }
     });
 
     // Handle unhandled promise rejections
     process.on('unhandledRejection', (reason, promise) => {
-        console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason);
-        process.exit(1);
+        console.error('💥 Unhandled Promise Rejection at:', promise);
+        console.error('Reason:', reason);
+        
+        // Log but don't crash on unhandled rejections in production
+        if (config.server.nodeEnv === 'development') {
+            gracefulShutdown('REJECTION');
+        } else {
+            console.log('⚠️ Continuing in production mode despite unhandled rejection');
+        }
     });
+
+    // Handle memory warnings
+    process.on('warning', (warning) => {
+        console.warn('⚠️ Process Warning:', warning.name, warning.message);
+        if (warning.name === 'DeprecationWarning') {
+            console.warn('Stack:', warning.stack);
+        }
+    });
+    
+    console.log('🛡️ Graceful shutdown handlers configured');
 };
 
 /**
@@ -275,6 +335,10 @@ const main = async () => {
         configureRoutes();
         configureErrorHandling();
         setupGracefulShutdown();
+        
+        // Start memory monitoring for Choreo
+        setupChoreoMemoryMonitoring();
+        
         startServer();
     } catch (error) {
         console.error('💥 Failed to start server:', error);
