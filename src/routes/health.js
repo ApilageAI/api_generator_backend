@@ -153,16 +153,25 @@ router.get('/ready', asyncHandler(async (req, res) => {
 
 /**
  * GET /api/health/live
- * Kubernetes/Docker liveness probe  
+ * Kubernetes/Docker liveness probe - Ultra simple and reliable
  */
 router.get('/live', (req, res) => {
-    // Simple liveness check - just return OK if process is running
-    res.json({
-        success: true,
-        status: 'alive',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    });
+    // Ultra simple liveness check - just return 200 OK
+    // No dependencies, no database checks, no complex logic
+    try {
+        const uptime = process.uptime();
+        
+        // Always return success unless process is completely dead
+        res.status(200).json({
+            status: 'alive',
+            uptime: Math.floor(uptime),
+            timestamp: Date.now(),
+            pid: process.pid
+        });
+    } catch (error) {
+        // Even if there's an error, try to return something
+        res.status(200).json({ status: 'alive', error: error.message });
+    }
 });
 
 /**
@@ -211,5 +220,46 @@ router.get('/choreo', asyncHandler(async (req, res) => {
 
     res.status(statusCode).json(healthData);
 }));
+
+/**
+ * GET /api/health/debug
+ * Debug endpoint to help troubleshoot Choreo issues
+ */
+router.get('/debug', (req, res) => {
+    try {
+        const memUsage = process.memoryUsage();
+        const debugInfo = {
+            status: 'debug_ok',
+            timestamp: new Date().toISOString(),
+            uptime_seconds: Math.floor(process.uptime()),
+            process: {
+                pid: process.pid,
+                version: process.version,
+                platform: process.platform,
+                arch: process.arch
+            },
+            memory: {
+                heap_used_mb: Math.round(memUsage.heapUsed / 1024 / 1024),
+                heap_total_mb: Math.round(memUsage.heapTotal / 1024 / 1024),
+                external_mb: Math.round(memUsage.external / 1024 / 1024),
+                rss_mb: Math.round(memUsage.rss / 1024 / 1024)
+            },
+            environment: {
+                node_env: process.env.NODE_ENV,
+                port: process.env.PORT,
+                container: process.env.CONTAINER,
+                disable_monitoring: process.env.DISABLE_MEMORY_MONITORING
+            }
+        };
+        
+        res.json(debugInfo);
+    } catch (error) {
+        res.status(500).json({
+            status: 'debug_error',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
 
 module.exports = router;

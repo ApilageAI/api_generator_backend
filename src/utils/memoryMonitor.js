@@ -91,37 +91,31 @@ const startMemoryMonitoring = (interval = 60000) => {
  * Setup memory monitoring for Choreo environment
  */
 const setupChoreoMemoryMonitoring = () => {
+    // Check if memory monitoring is disabled
+    if (process.env.DISABLE_MEMORY_MONITORING === 'true') {
+        console.log('📊 Memory monitoring disabled by environment variable');
+        return;
+    }
+    
     // Check if running in Choreo/container environment
     const isContainer = process.env.NODE_ENV === 'production' || 
                         process.env.CONTAINER === 'true' ||
                         process.env.KUBERNETES_SERVICE_HOST;
                         
     if (isContainer) {
-        console.log('🐳 Container environment detected, enabling memory monitoring');
+        console.log('🐳 Container environment detected, enabling light memory monitoring');
         
-        // Start monitoring every 30 seconds in production
-        startMemoryMonitoring(30000);
+        // Start monitoring every 2 minutes in production (less frequent)
+        startMemoryMonitoring(120000);
         
-        // Log memory usage on specific events
+        // Only log memory usage on shutdown - no other event monitoring
         process.on('SIGTERM', () => {
             console.log('📊 Memory usage before shutdown:', getMemoryUsage());
         });
         
-        process.on('SIGINT', () => {
-            console.log('📊 Memory usage before shutdown:', getMemoryUsage());
-        });
-        
-        // Monitor for memory warnings
-        process.on('warning', (warning) => {
-            if (warning.name === 'MaxListenersExceededWarning' || 
-                warning.name === 'DeprecationWarning') {
-                console.warn('⚠️ Process warning:', warning.message);
-                console.log('📊 Current memory usage:', getMemoryUsage());
-            }
-        });
     } else {
         console.log('💻 Development environment detected, basic memory monitoring enabled');
-        startMemoryMonitoring(120000); // Every 2 minutes in development
+        startMemoryMonitoring(300000); // Every 5 minutes in development
     }
 };
 

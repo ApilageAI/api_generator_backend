@@ -1,0 +1,88 @@
+# Choreo Deployment Configuration - Production Ready
+# This file contains the recommended settings for stable Choreo deployment
+
+apiVersion: v1
+kind: Config
+metadata:
+  name: apilage-ai-backend
+  labels:
+    app: apilage-ai-backend
+    version: "2.0"
+    tier: backend
+  
+spec:
+  # Health Check Configuration - Stable and Forgiving
+  healthCheck:
+    path: "/api/health/live"
+    port: 3000
+    scheme: "HTTP"
+    initialDelaySeconds: 60
+    periodSeconds: 20
+    timeoutSeconds: 10
+    successThreshold: 1
+    failureThreshold: 8
+    
+  # Readiness Probe - Simple and Reliable
+  readinessProbe:
+    path: "/api/health/live"
+    port: 3000
+    scheme: "HTTP"  
+    initialDelaySeconds: 45
+    periodSeconds: 15
+    timeoutSeconds: 10
+    successThreshold: 1
+    failureThreshold: 6
+    
+  # Liveness Probe - Very Conservative
+  livenessProbe:
+    path: "/api/health/live"
+    port: 3000
+    scheme: "HTTP"
+    initialDelaySeconds: 120
+    periodSeconds: 60
+    timeoutSeconds: 15
+    successThreshold: 1
+    failureThreshold: 10
+    
+  # Resource Configuration - No Limits for Stability
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    # NO LIMITS SPECIFIED - Prevents OOM kills
+      
+  # Environment Configuration
+  environment:
+    NODE_ENV: "production"
+    PORT: "3000"
+    CONTAINER: "true"
+    DISABLE_MEMORY_MONITORING: "true"
+    # Add your Firebase and Gemini API keys here
+    
+  # Container Configuration
+  container:
+    port: 3000
+    terminationGracePeriodSeconds: 10
+    
+  # Scaling Configuration - Keep Simple
+  scaling:
+    minReplicas: 1
+    maxReplicas: 1
+    targetCPUUtilizationPercentage: 90
+    targetMemoryUtilizationPercentage: 90
+
+---
+# Service Configuration
+apiVersion: v1
+kind: Service
+metadata:
+  name: apilage-ai-backend-service
+spec:
+  selector:
+    app: apilage-ai-backend
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      protocol: TCP
+  type: LoadBalancer

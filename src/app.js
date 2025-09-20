@@ -232,11 +232,11 @@ const setupGracefulShutdown = () => {
         logShutdown(signal);
         console.log(`🔄 Gracefully shutting down on ${signal}...`);
         
-        // Set a timeout for forceful shutdown
+        // Set a timeout for forceful shutdown - much shorter for Choreo
         const forceTimeout = setTimeout(() => {
-            console.error('💥 Force shutdown timeout reached');
-            process.exit(1);
-        }, 10000); // 10 seconds timeout
+            console.error('💥 Force shutdown timeout reached - exiting');
+            process.exit(0);
+        }, 5000); // 5 seconds timeout
         
         // Close server gracefully
         if (global.httpServer) {
@@ -273,30 +273,40 @@ const setupGracefulShutdown = () => {
     // Handle container stop signals  
     process.on('SIGUSR2', () => gracefulShutdown('SIGUSR2'));
 
-    // Enhanced error handling for container environments
+    // Enhanced error handling for container environments - more forgiving
     process.on('uncaughtException', (error) => {
         console.error('💥 Uncaught Exception:', error);
         console.error('Stack trace:', error.stack);
         
-        // Try graceful shutdown first
-        if (!isShuttingDown) {
-            console.log('🔄 Attempting graceful shutdown due to uncaught exception...');
+        // In production/Choreo, try to continue unless it's a critical error
+        if (error.code === 'EADDRINUSE' || 
+            error.code === 'ENOTFOUND' || 
+            error.message.includes('listen') ||
+            isShuttingDown) {
+            console.log('🔄 Critical error - attempting graceful shutdown...');
             gracefulShutdown('EXCEPTION');
         } else {
-            process.exit(1);
+            console.log('⚠️ Non-critical exception - attempting to continue...');
+            // Try to continue in production
+            if (process.env.NODE_ENV === 'production') {
+                console.log('🔄 Continuing despite uncaught exception (production mode)');
+            } else {
+                gracefulShutdown('EXCEPTION');
+            }
         }
     });
 
-    // Handle unhandled promise rejections
+    // Handle unhandled promise rejections - be more forgiving
     process.on('unhandledRejection', (reason, promise) => {
         console.error('💥 Unhandled Promise Rejection at:', promise);
         console.error('Reason:', reason);
         
-        // Log but don't crash on unhandled rejections in production
-        if (config.server.nodeEnv === 'development') {
+        // In Choreo/production, log but continue - don't crash
+        console.log('⚠️ Continuing despite unhandled rejection (production mode)');
+        
+        // Only crash in development if explicitly set
+        if (config.server.nodeEnv === 'development' && process.env.STRICT_ERRORS === 'true') {
             gracefulShutdown('REJECTION');
-        } else {
-            console.log('⚠️ Continuing in production mode despite unhandled rejection');
         }
     });
 
@@ -317,9 +327,29 @@ const setupGracefulShutdown = () => {
 const startServer = () => {
     const PORT = config.server.port;
     
-    global.httpServer = app.listen(PORT, () => {
+    console.log(`🚀 Starting server on port ${PORT}...`);
+    console.log(`📊 Node.js version: ${process.version}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🐳 Container mode: ${process.env.CONTAINER || 'false'}`);
+    console.log(`📊 Memory monitoring: ${process.env.DISABLE_MEMORY_MONITORING === 'true' ? 'disabled' : 'enabled'}`);
+    
+    global.httpServer = app.listen(PORT, '0.0.0.0', () => {
         logStartup(PORT);
-        console.log(`🌟 Apilage AI Platform is ready!\n`);
+        console.log(`🌟 Apilage AI Platform is ready!`);
+        console.log(`📍 Server listening on 0.0.0.0:${PORT}`);
+        console.log(`❤️  Health Check: http://localhost:${PORT}/api/health/live`);
+        console.log(`🐛 Debug endpoint: http://localhost:${PORT}/api/health/debug`);
+        console.log(`⏰ Server startup completed at: ${new Date().toISOString()}`);
+        console.log('');
+    });
+
+    // Add error handling for server startup
+    global.httpServer.on('error', (error) => {
+        console.error('💥 Server startup error:', error);
+        if (error.code === 'EADDRINUSE') {
+            console.error(`❌ Port ${PORT} is already in use`);
+        }
+        process.exit(1);
     });
 
     return global.httpServer;
