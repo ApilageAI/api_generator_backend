@@ -20,18 +20,22 @@ router.post('/', verifyApiKey, asyncHandler(async (req, res) => {
     const startTime = Date.now();
 
     try {
+        // Calculate credits based on word count
+        const wordCount = message.trim().split(/\s+/).length;
+        const creditsToDeduct = wordCount * 0.008;
+
         // Generate AI response
         const aiResponseData = await generateAIResponse(message, { enableGoogleSearch });
         
         // Deduct credits from user
-        const updatedUser = await deductCredits(req.user.uid, 1);
+        const updatedUser = await deductCredits(req.user.uid, creditsToDeduct);
         
         // Log the request for analytics
         const requestId = await logUserRequest(req.user.uid, {
             message,
             responseLength: aiResponseData.response.length,
             responseTime: aiResponseData.responseTime,
-            creditsUsed: 1,
+            creditsUsed: creditsToDeduct,
             model: aiResponseData.model,
             ip: req.ip,
             userAgent: req.get('User-Agent')
@@ -43,7 +47,7 @@ router.post('/', verifyApiKey, asyncHandler(async (req, res) => {
         res.json({
             success: true,
             response: aiResponseData.response,
-            credits_remaining: updatedUser.credits,
+            credits_remaining: parseFloat(updatedUser.credits.toFixed(3)),
             request_id: requestId,
             model: aiResponseData.model,
             response_time_ms: aiResponseData.responseTime,
@@ -78,7 +82,7 @@ router.get('/models', asyncHandler(async (req, res) => {
                     'Sri Lankan curriculum support',
                     'LaTeX formatting'
                 ],
-                cost_per_request: 1
+                cost_per_word: 0.008
             }
         ],
         default_model: 'gemini-2.0-flash'
