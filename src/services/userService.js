@@ -12,7 +12,7 @@ const { ApiError } = require('../middleware/errorHandler');
  * @param {number} creditsToDeduct - Number of credits to deduct
  * @returns {Promise<Object>} Updated user data
  */
-const deductCredits = async (userId, creditsToDeduct = 1) => {
+const deductCredits = async (userId, creditsToDeduct = 0) => {
     try {
         const db = getDatabase();
         const userRef = db.collection('users').doc(userId);
@@ -75,7 +75,7 @@ const getUserStats = async (userId) => {
         const userData = userDoc.data();
         
         return {
-            credits_remaining: userData.credits || 0,
+            credits_remaining: parseFloat((userData.credits || 0).toFixed(3)),
             total_requests: userData.totalRequests || 0,
             email: userData.email,
             api_key: userData.apiKey,
@@ -112,7 +112,7 @@ const logUserRequest = async (userId, requestData) => {
             responseLength: requestData.responseLength || 0,
             responseTime: requestData.responseTime || 0,
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            creditsUsed: requestData.creditsUsed || 1,
+            creditsUsed: requestData.creditsUsed || 0,
             model: requestData.model || 'gemini-2.0-flash',
             ip: requestData.ip,
             userAgent: requestData.userAgent
