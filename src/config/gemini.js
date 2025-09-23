@@ -62,7 +62,7 @@ const SAFETY_SETTINGS = [
 const createGeminiRequest = (message, options = {}) => {
     const generationConfig = { ...DEFAULT_GENERATION_CONFIG, ...options.generationConfig };
     
-    return {
+    const request = {
         contents: [
             {
                 parts: [
@@ -75,6 +75,13 @@ const createGeminiRequest = (message, options = {}) => {
         generationConfig,
         safetySettings: options.safetySettings || SAFETY_SETTINGS
     };
+
+    // Conditionally add tools for Google Search
+    if (options.enableGoogleSearch) {
+        request.tools = [{ "google_search": {} }];
+    }
+
+    return request;
 };
 
 /**
@@ -98,7 +105,23 @@ const generateResponse = async (message, options = {}) => {
             throw new Error('No response from AI model');
         }
 
-        return response.data.candidates[0].content.parts[0].text;
+        const candidate = response.data.candidates[0];
+        const parts = candidate.content.parts;
+
+        let finalResponse = "";
+        for (const part of parts) {
+            if (part.text) {
+                finalResponse += part.text + "\n";
+            }
+            if (part.functionCall) {
+                finalResponse += `🔍 Search triggered: ${JSON.stringify(part.functionCall)}\n`;
+            }
+            if (part.web) {
+                finalResponse += `🌐 Web result: ${JSON.stringify(part.web)}\n`;
+            }
+        }
+
+        return finalResponse.trim();
     } catch (error) {
         console.error('Gemini API Error:', error.response?.data || error.message);
         throw error;

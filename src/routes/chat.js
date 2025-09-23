@@ -16,12 +16,12 @@ const router = express.Router();
  * Send a message to AI and get response
  */
 router.post('/', verifyApiKey, asyncHandler(async (req, res) => {
-    const { message } = req.body;
+    const { message, enableGoogleSearch = false } = req.body;
     const startTime = Date.now();
 
     try {
         // Generate AI response
-        const aiResponseData = await generateAIResponse(message);
+        const aiResponseData = await generateAIResponse(message, { enableGoogleSearch });
         
         // Deduct credits from user
         const updatedUser = await deductCredits(req.user.uid, 1);
